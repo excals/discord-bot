@@ -1,1 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bot Dashboard</title>
+<style>
+  :root {
+    --bg: #0b0d10;
+    --panel: #14171c;
+    --panel-hover: #191d23;
+    --border: #262b33;
+    --text: #e7e9ec;
+    --text-dim: #8b93a1;
+    --accent: #5b8cff;
+    --accent-dim: #2a3a5c;
+    --new: #3ecf8e;
+    --new-bg: #123626;
+    --removed: #ff6b6b;
+    --removed-bg: #3a1e1e;
+    --radius: 10px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
 
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  header.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+
+  .title-block h1 {
+    font-size: 22px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+
+  .title-block p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .stat-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .stat-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 18px;
+    min-width: 96px;
+  }
+
+  .stat-card .num {
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.1;
+  }
+
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 2px;
+  }
+
+  button.refresh {
+    background: var(--accent);
+    color: #0b0d10;
+    border: none;
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.1s ease, opacity 0.15s ease;
+  }
+
+  button.refresh:hover { opacity: 0.9; }
+  button.refresh:active { transform: scale(0.97); }
+  button.refresh:disabled { opacity: 0.5; cursor: default; }
+
+  .spinner {
+    width: 13px;
+    height: 13px;
+    border: 2px solid rgba(11,13,16,0.35);
+    border-top-color: #0b0d10;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+
+  button.refresh.loading .spinner { display: inline-block; }
+  button.refresh.loading .refresh-label { display: none; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .diff-banner {
+    display: none;
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+  }
+
+  .diff-banner.show { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; }
+
+  .diff-banner .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-weight: 600;
+  }
+
+  .diff-banner .chip.new { background: var(--new-bg); color: var(--new); }
+  .diff-banner .chip.removed { background: var(--removed-bg); color: var(--removed); }
+  .diff-banner .chip.same { background: rgba(255,255,255,0.06); color: var(--text-dim); }
+
+  .diff-banner .timestamp { color: var(--text-dim); margin-left: auto; }
+
+  /* Lookup panel */
+  .lookup {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+
+  .lookup h2 {
+    font-size: 13px;
+    margin: 0 0 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+
+  .lookup-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .lookup-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .lookup-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  .lookup-row button {
+    background: var(--accent-dim);
+    color: var(--accent);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .lookup-results {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .lookup-result {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 8px 10px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .lookup-result .who {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .lookup-result .who .uname { font-weight: 600; }
+  .lookup-result .who .uid { color: var(--text-dim); font-family: "SF Mono", Menlo, monospace; }
+  .lookup-result .server { color: var(--text-dim); }
+
+  .lookup-empty {
+    font-size: 12px;
+    color: var(--text-dim);
+    margin-top: 10px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    position: relative;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .card:hover { background: var(--panel-hover); }
+
+  .card.is-new {
+    border-color: rgba(62,207,142,0.5);
+    background: linear-gradient(180deg, rgba(62,207,142,0.08), transparent 60%), var(--panel);
+  }
+
+  .card-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--accent-dim);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .icon img { width: 100%; height: 100%; object-fit: cover; }
+
+  .server-name {
+    font-size: 14px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .server-id {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+
+  .new-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: var(--new-bg);
+    color: var(--new);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    padding: 3px 8px;
+    border-radius: 999px;
+  }
+
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    margin-top: 2px;
+  }
+
+  .card-meta .members {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .card-footer {
+    margin-top: 10px;
+  }
+
+  .download-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  .download-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .empty {
+    text-align: center;
+    color: var(--text-dim);
+    font-size: 13px;
+    padding: 60px 0;
+  }
+
+  .footnote {
+    margin-top: 28px;
+    font-size: 11px;
+    color: var(--text-dim);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="title-block">
+      <h1>Server Dashboard</h1>
+      <p>Servers the bot is currently in</p>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card">
+        <div class="num" id="serverCount">–</div>
+        <div class="label">Servers</div>
+      </div>
+      <div class="stat-card">
+        <div class="num" id="memberCount">–</div>
+        <div class="label">Total members</div>
+      </div>
+      <button class="refresh" id="refreshBtn">
+        <span class="spinner"></span>
+        <span class="refresh-label">↻ Update</span>
+      </button>
+    </div>
+  </header>
+
+  <div class="diff-banner" id="diffBanner"></div>
+
+  <div class="lookup">
+    <h2>Look up a member</h2>
+    <div class="lookup-row">
+      <input type="text" id="lookupInput" placeholder="Discord ID or username...">
+      <button id="lookupBtn">Search</button>
+    </div>
+    <div class="lookup-results" id="lookupResults"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="emptyState" style="display:none;">No servers loaded yet.</div>
+
+  <div class="footnote">Last checked: <span id="lastChecked">never</span></div>
+</div>
+
+<script>
+/* ------------------------------------------------------------------
+   DATA LAYER
+   API_BASE is empty because this file is served BY main.py at "/" —
+   so /api/... requests go to the same host/port automatically.
+   If you ever host dashboard.html separately from the API, set
+   API_BASE to something like "http://dashboard.local:8000" instead.
+------------------------------------------------------------------- */
+const API_BASE = "";
+
+let currentServers = [];
+
+function fmt(n) {
+  return n.toLocaleString();
+}
+
+function initials(name) {
+  return name
+    .split(/\s+/)
+    .map(w => w[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+function render(servers, newIds = new Set()) {
+  const grid = document.getElementById("grid");
+  const empty = document.getElementById("emptyState");
+  grid.innerHTML = "";
+
+  if (!servers.length) {
+    empty.style.display = "block";
+  } else {
+    empty.style.display = "none";
+    servers.forEach(s => {
+      const card = document.createElement("div");
+      card.className = "card" + (newIds.has(s.id) ? " is-new" : "");
+      const iconInner = s.iconUrl
+        ? `<img src="${s.iconUrl}" alt="">`
+        : initials(s.name);
+      card.innerHTML = `
+        ${newIds.has(s.id) ? '<div class="new-badge">NEW</div>' : ""}
+        <div class="card-top">
+          <div class="icon">${iconInner}</div>
+          <div>
+            <div class="server-name">${s.name}</div>
+            <div class="server-id">${s.id}</div>
+          </div>
+        </div>
+        <div class="card-meta">
+          <span>Joined ${s.joinedAt || "–"}</span>
+          <span class="members">${fmt(s.memberCount)} members</span>
+        </div>
+        <div class="card-footer">
+          <button class="download-btn" data-id="${s.id}" data-name="${s.name}">⭳ Download members CSV</button>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+
+    grid.querySelectorAll(".download-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        window.location.href = `${API_BASE}/api/servers/${btn.dataset.id}/members.csv`;
+      });
+    });
+  }
+
+  const totalMembers = servers.reduce((sum, s) => sum + s.memberCount, 0);
+  document.getElementById("serverCount").textContent = servers.length;
+  document.getElementById("memberCount").textContent = fmt(totalMembers);
+}
+
+function showDiff(added, removed, unchangedCount) {
+  const banner = document.getElementById("diffBanner");
+  if (!added.length && !removed.length) {
+    banner.className = "diff-banner show";
+    banner.innerHTML = `
+      <span class="chip same">No changes</span>
+      <span>Still in ${unchangedCount} server${unchangedCount === 1 ? "" : "s"}</span>
+      <span class="timestamp">${new Date().toLocaleString()}</span>
+    `;
+    return;
+  }
+  banner.className = "diff-banner show";
+  banner.innerHTML = `
+    ${added.length ? `<span class="chip new">+ ${added.length} new</span>` : ""}
+    ${removed.length ? `<span class="chip removed">– ${removed.length} left</span>` : ""}
+    <span>${added.map(s => s.name).join(", ")}${removed.length ? (added.length ? " · " : "") + `Left ${removed.length} server(s)` : ""}</span>
+    <span class="timestamp">${new Date().toLocaleString()}</span>
+  `;
+}
+
+async function fetchServers() {
+  const res = await fetch(`${API_BASE}/api/servers`);
+  if (!res.ok) throw new Error("Failed to load servers");
+  const data = await res.json();
+  return data.servers;
+}
+
+async function boot() {
+  currentServers = await fetchServers();
+  render(currentServers);
+}
+
+document.getElementById("refreshBtn").addEventListener("click", async () => {
+  const btn = document.getElementById("refreshBtn");
+  btn.classList.add("loading");
+  btn.disabled = true;
+  try {
+    const res = await fetch(`${API_BASE}/api/refresh`, { method: "POST" });
+    if (!res.ok) throw new Error("Failed to refresh");
+    const data = await res.json();
+    currentServers = data.servers;
+    render(currentServers, new Set(data.added.map(s => s.id)));
+    const unchanged = currentServers.length - data.added.length;
+    showDiff(data.added, data.removed, unchanged);
+    document.getElementById("lastChecked").textContent = new Date().toLocaleString();
+  } catch (err) {
+    alert("Couldn't refresh: " + err.message);
+  } finally {
+    btn.classList.remove("loading");
+    btn.disabled = false;
+  }
+});
+
+async function runLookup() {
+  const query = document.getElementById("lookupInput").value.trim();
+  const resultsEl = document.getElementById("lookupResults");
+  resultsEl.innerHTML = "";
+  if (!query) return;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/lookup?query=${encodeURIComponent(query)}`);
+    if (!res.ok) throw new Error("Lookup failed");
+    const data = await res.json();
+
+    if (!data.results.length) {
+      resultsEl.innerHTML = `<div class="lookup-empty">No matches.</div>`;
+      return;
+    }
+
+    data.results.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "lookup-result";
+      row.innerHTML = `
+        <div class="who">
+          <span class="uname">${r.displayName || r.username}</span>
+          <span class="uid">${r.userId}</span>
+        </div>
+        <span class="server">${r.serverName}</span>
+      `;
+      resultsEl.appendChild(row);
+    });
+  } catch (err) {
+    resultsEl.innerHTML = `<div class="lookup-empty">Error: ${err.message}</div>`;
+  }
+}
+
+document.getElementById("lookupBtn").addEventListener("click", runLookup);
+document.getElementById("lookupInput").addEventListener("keydown", e => {
+  if (e.key === "Enter") runLookup();
+});
+
+boot();
+</script>
+</body>
+</html>
